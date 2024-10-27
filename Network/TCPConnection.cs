@@ -206,10 +206,8 @@ namespace YLCommon
             }
         }
         // 接收到挥手后，彻底关闭
-        public bool isServer = false;
         private void EndClose()
         {
-            if (isServer) Thread.Sleep(5000);
             if (socket == null) return;
             /* state == ConnectionState.Connected 状态进入到该方法：代表被动方接收到主动方的挥手，直接断开 socket 两个通道的连接，释放 socket
              * 也就是说被动方的挥手是由程序控制的，这里我们只允许 Close 进行被动方的挥手

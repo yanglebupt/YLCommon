@@ -145,6 +145,21 @@ namespace YLCommon
                 con.Send(message);
         }
 
+        public void SendAll(T message)
+        {
+            foreach (var item in clients)
+            {
+                item.Value.Send(message);
+            }
+        }
+        public void SendAll(byte[] message)
+        {
+            foreach (var item in clients)
+            {
+                item.Value.Send(message);
+            }
+        }
+
         public void SendAll(T message, ulong ID)
         {
             foreach (var item in clients)

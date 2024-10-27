@@ -15,7 +15,6 @@ namespace YLCommon
             for (int i = 0; i < capacity; i++)
             {
                 var con = new TCPConnection<T>();
-                con.isServer = true;
                 pool.Push(con);
             }
         }

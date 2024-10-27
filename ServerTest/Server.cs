@@ -20,7 +20,6 @@ public class Server : ITCPServer<NetMsg>
     {
         Logger.ColorLog(LogColor.Green, $"Message from {ID}, {msg.name}");
         msg.name = $"{msg.name} from [{ID}]";
-        Thread.Sleep(3000);
-        SendTo(ID, msg);
+        SendAll(msg, ID);
     }
 }
