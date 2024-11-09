@@ -19,8 +19,6 @@ namespace YLCommon
             public Action<string>? warn;
             // 错误打印
             public Action<string>? error;
-            // 成功打印
-            public Action<string>? ok;
         };
 
         public static Logger logger = new();

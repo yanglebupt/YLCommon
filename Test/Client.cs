@@ -2,11 +2,11 @@
 
 public class Client : ITCPClient<NetMsg>
 {
-    public Client(string ip, short port) : base(ip, port) {}
+    public Client(string ip, short port, bool connectImmediately = false) : base(ip, port, connectImmediately) {}
 
     public override void Connected()
     {
-        Logger.ColorLog(LogColor.Green, "Connected OK");
+        Logger.Info("Connected OK");
     }
 
     public override void ConnectionFailed()
@@ -21,6 +21,6 @@ public class Client : ITCPClient<NetMsg>
 
     public override void Message(NetMsg msg)
     {
-        Logger.ColorLog(LogColor.Green, msg.name);
+        Logger.Info(msg.name);
     }
 }

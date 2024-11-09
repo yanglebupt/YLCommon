@@ -44,7 +44,7 @@ namespace YLCommon
         /// </summary>
         public Action<SocketError>? OnError;
 
-        public TCPClient(string ip, short port) {
+        public TCPClient(string ip, short port, bool connectImmediately = false) {
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(ip), port);
             socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             
@@ -52,7 +52,12 @@ namespace YLCommon
             saea = new SocketAsyncEventArgs();
             saea.RemoteEndPoint = endPoint;
             saea.Completed += Saea_Completed;
-           
+
+            if (connectImmediately) Connect();
+        }
+
+        public void Connect()
+        {
             // 返回IO是否挂起
             // 如果立刻返回 false，代表连接建立成功，同步执行
             // 返回 true，代表连接还未建立成功，需要异步等待完成事件触发
@@ -107,7 +112,7 @@ namespace YLCommon
     /// <typeparam name="T">数据包类型</typeparam>
     public abstract class ITCPClient<T> : TCPClient<T> where T: TCPMessage
     {
-        public ITCPClient(string ip, short port) : base(ip, port) {
+        public ITCPClient(string ip, short port, bool connectImmediately = false) : base(ip, port, connectImmediately) {
             OnConnected += Connected;
             OnConnectionFailed += ConnectionFailed;
             OnDisconnected += Disconnected;

@@ -4,7 +4,8 @@ namespace YLCommon
 {
     public enum LogLevel
     {
-        Log,
+        Debug = 0,
+        Info,
         Warn,
         Error
     }

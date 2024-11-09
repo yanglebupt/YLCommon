@@ -8,42 +8,43 @@ using YLCommon;
 // 扩展方法，相当于往原型链上添加实例方法
 public static class ExtensionMethods
 {
-    public static void Log(this object _, string message, params object[] args)
-    {
-        Logger.Log(message, args);
-    }
-
-    public static void Log(this object _, object message)
-    {
-        Logger.Log(message);
-    }
-
     public static void ColorLog(this object _, LogColor logColor, string message, params object[] args)
     {
         Logger.ColorLog(logColor, message, args);
+    }
+    public static void Debug(this object _, string message, params object[] args)
+    {
+        Logger.Debug(message, args);
+    }
+    public static void Info(this object _, string message, params object[] args)
+    {
+        Logger.Info(message, args);
+    }
+    public static void Warn(this object _, string message, params object[] args)
+    {
+        Logger.Warn(message, args);
+    }
+    public static void Error(this object _, string message, params object[] args)
+    {
+        Logger.Error(message, args);
     }
 
     public static void ColorLog(this object _, LogColor logColor, object message)
     {
         Logger.ColorLog(logColor, message);
     }
-
-    public static void Warn(this object _, string message, params object[] args)
+    public static void Debug(this object _, object message)
     {
-        Logger.Warn(message, args);
+        Logger.Debug(message);
     }
-
+    public static void Info(this object _, object message)
+    {
+        Logger.Info(message);
+    }
     public static void Warn(this object _, object message)
     {
         Logger.Warn(message);
     }
-
-    public static void Error(this object _, string message, params object[] args)
-    {
-        Logger.Error(message, args);
-
-    }
-
     public static void Error(this object _, object message)
     {
         Logger.Error(message);
@@ -153,10 +154,15 @@ namespace YLCommon
             }
         }
 
-        public static LoggerConfig cfg = new LoggerConfig();
         private static ILogger loggerInstance;
         private static StreamWriter? loggerFileWriter = null;
         private static string loggerSaveFile = "";
+        private static string[] logLevelName = { "Debug", "Info", "Warn", "Error" };
+
+
+        public static LoggerConfig cfg = new LoggerConfig();
+        public static string LoggerSaveFile => loggerSaveFile;
+
         public static string EnableSetting()
         {
             loggerInstance = cfg.loggerType == LoggerType.Console ? new ConsoleLogger() : new UnityLogger() as ILogger;
@@ -208,67 +214,62 @@ namespace YLCommon
             return loggerSaveFile;
         }
 
-        public static void Log(string message, params object[] args) {
-            if (!cfg.enable || cfg.logLevel < LogLevel.Log) return;
-            string d_m = DecorateLog("[Info]", string.Format(message, args));
-            loggerInstance.Log(d_m);
-            WriteToFile(d_m);
-        }
-
-        public static void Log(object message)
+        private static void ColorLog(LogColor logColor, LogLevel logLevel, string message, params object[] args)
         {
-            if (!cfg.enable || cfg.logLevel < LogLevel.Log) return;
-            string d_m = DecorateLog("[Info]", message.ToString());
-            loggerInstance.Log(d_m);
+            if (!cfg.enable || cfg.logLevel < logLevel) return;
+            string d_m = DecorateLog($"[{logLevelName[(int)logLevel]}]", string.Format(message, args));
+            if (logLevel == LogLevel.Warn) loggerInstance.Warn(d_m);
+            else if (logLevel == LogLevel.Error) loggerInstance.Error(d_m);
+            else loggerInstance.Log(d_m, logColor);
             WriteToFile(d_m);
         }
 
         public static void ColorLog(LogColor logColor, string message, params object[] args)
         {
-            if (!cfg.enable || cfg.logLevel < LogLevel.Log) return;
-            string d_m = DecorateLog("[Info]", string.Format(message, args));
-            loggerInstance.Log(d_m, logColor);
-            WriteToFile(d_m);
+            ColorLog(logColor, LogLevel.Info, message, args);
         }
 
         public static void ColorLog(LogColor logColor, object message)
         {
-            if (!cfg.enable || cfg.logLevel < LogLevel.Log) return;
-            string d_m = DecorateLog("[Info]", message.ToString());
-            loggerInstance.Log(d_m, logColor);
-            WriteToFile(d_m);
+            ColorLog(logColor, LogLevel.Info, message.ToString());
+        }
+
+        public static void Debug(string message, params object[] args)
+        {
+            ColorLog(LogColor.Blue, LogLevel.Debug, message, args);
+        }
+
+        public static void Debug(object message)
+        {
+            ColorLog(LogColor.Blue, LogLevel.Debug, message.ToString());
+        }
+
+        public static void Info(string message, params object[] args)
+        {
+            ColorLog(LogColor.Green, LogLevel.Info, message, args);
+        }
+
+        public static void Info(object message)
+        {
+            ColorLog(LogColor.Green, LogLevel.Info, message.ToString());
         }
 
         public static void Warn(string message, params object[] args)
         {
-            if (!cfg.enable || cfg.logLevel < LogLevel.Warn) return;
-            string d_m = DecorateLog("[Warn]", string.Format(message, args));
-            loggerInstance.Warn(d_m);
-            WriteToFile(d_m);
+            ColorLog(LogColor.Yellow, LogLevel.Warn, message, args);
         }
-
         public static void Warn(object message)
         {
-            if (!cfg.enable || cfg.logLevel < LogLevel.Warn) return;
-            string d_m = DecorateLog("[Warn]", message.ToString());
-            loggerInstance.Warn(d_m);
-            WriteToFile(d_m);
+            ColorLog(LogColor.Yellow, LogLevel.Warn, message.ToString());
         }
 
         public static void Error(string message, params object[] args)
         {
-            if (!cfg.enable || cfg.logLevel < LogLevel.Error) return;
-            string d_m = DecorateLog("[Error]", string.Format(message, args));
-            loggerInstance.Error(d_m);
-            WriteToFile(d_m);
+            ColorLog(LogColor.Red, LogLevel.Error, message, args);
         }
-
         public static void Error(object message)
         {
-            if (!cfg.enable || cfg.logLevel < LogLevel.Error) return;
-            string d_m = DecorateLog("[Error]", message.ToString());
-            loggerInstance.Error(d_m);
-            WriteToFile(d_m);
+            ColorLog(LogColor.Red, LogLevel.Error, message.ToString());
         }
 
         private static void WriteToFile(string message)
@@ -280,7 +281,7 @@ namespace YLCommon
                 FileInfo fileInfo = new FileInfo(loggerSaveFile);
                 if (!fileInfo.Exists) return;
                 if (fileInfo.Length >= cfg.savefileMaxSize)
-                    Console.WriteLine(CreateLogFile());
+                    CreateLogFile();
                 try
                 {
                     loggerFileWriter.WriteLine(message);

@@ -1,14 +1,18 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <BaseOutputPath>D:\Unity-Learn\QiQiKe\Packages\Assets\Modules\Network\</BaseOutputPath>
+    <BaseOutputPath>D:\Unity-Learn\QiQiKe\Packages\Assets\Scripts\NetMessage\</BaseOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Network\Network.csproj" />
+    <ProjectReference Include="..\Network\Network.csproj">
+      <Private>false</Private>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+      <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>

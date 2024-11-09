@@ -10,13 +10,13 @@ Logger.cfg.showTrace = false;
 Console.WriteLine(Logger.EnableSetting());
 
 /*
-Logger.Log("Log {0}-{1}", "Mike", 10);
+Logger.Info("Log {0}-{1}", "Mike", 10);
 Logger.ColorLog(LogColor.Cyan, "ColorLog Cyan {0}-{1}", "Mike", 10);
 Logger.ColorLog(LogColor.Magenta, "ColorLog Magenta {0}-{1}", "Mike", 10);
 Logger.Warn("Warn {0}-{1}", "Mike", 10);
 Logger.Error("Error {0}-{1}", "Mike", 10);
 
-Logger.Log("Log {0}-{1}", "Tom", 10);
+Logger.Info("Log {0}-{1}", "Tom", 10);
 Logger.ColorLog(LogColor.Cyan, "ColorLog Cyan {0}-{1}", "Tom", 10);
 Logger.ColorLog(LogColor.Magenta, "ColorLog Magenta {0}-{1}", "Tom", 10);
 Logger.Warn("Warn {0}-{1}", "Tom", 10);
@@ -114,12 +114,12 @@ while (true)
 
 #region NetworkTest
 
+
 NetworkConfig.logger.warn = Logger.Warn;
 NetworkConfig.logger.error = Logger.Error;
-NetworkConfig.logger.info = Logger.Log;
-NetworkConfig.logger.ok = (string m) => Logger.ColorLog(LogColor.Green, m);
+NetworkConfig.logger.info = Logger.Info;
 
-Client client = new("127.0.0.1", 3000);
+Client client = new("127.0.0.1", 3000, true);
 
 /*
 TCPClient<NetMsg> client = new("127.0.0.1", 3000);
@@ -140,7 +140,6 @@ client.OnMessage += (NetMsg msg) => {
 };
 */
 
-
 while (true)
 {
     string? ipt = Console.ReadLine();
@@ -152,9 +151,9 @@ while (true)
         client.Send(msg);
     }
 }
-
 #endregion
 
+#region rw_lock
 /*
 
 UsingReaderWriterLockSlim s = new();
@@ -334,3 +333,103 @@ public class UsingReaderWriterLockSlim
 };
 
 */
+
+#endregion
+
+#region PriorityQueue
+/*
+int count = 1000000;
+while (count > 0)
+{
+    count--;
+    LoopTest();
+}
+
+static void LoopTest()
+{
+    //random add data
+    Random rd = new Random();
+    int genCount = rd.Next(100, 9999);
+    List<Item> itemLst = new List<Item>(genCount);
+    for (int i = 0; i < genCount; i++)
+    {
+        itemLst.Add(new Item
+        {
+            itemName = $"item_{i}",
+            priority = rd.Next(0, 10000)
+        });
+    }
+
+    //enqueue
+    PriorityQueue<Item> pque = new (100);
+    for (int i = 0; i < itemLst.Count; i++)
+    {
+        pque.Enqueue(itemLst[i]);
+    }
+
+    //random rmv item
+    int rmvCount = rd.Next(1, 9999);
+    for (int i = 0; i < rmvCount; i++)
+    {
+        int index = rd.Next(0, pque.Count);
+        int pqIndex = pque.IndexOf(itemLst[index]);
+        if (pqIndex >= 0)
+        {
+            pque.RemoveAt(pqIndex);
+        }
+    }
+
+    //dequeue
+    List<Item> outLst = new List<Item>();
+    while (pque.Count > 0)
+    {
+        Item item = pque.Dequeue();
+        outLst.Add(item);
+        item.PrintInfo();
+    }
+
+    //order check
+    for (int i = 0; i < outLst.Count; i++)
+    {
+        if (i < outLst.Count - 1)
+        {
+            if (outLst[i].priority > outLst[i + 1].priority)
+            {
+                Exception e = new Exception("优先级异常。");
+                throw e;
+            }
+        }
+    }
+}
+
+Console.WriteLine("---------Test Succ!!!--------");
+
+Console.ReadKey();
+
+public class Item : IComparable<Item>
+{
+    public string itemName;
+    public float priority;
+    public int CompareTo(Item other)
+    {
+        if (priority < other.priority)
+        {
+            return -1;
+        }
+        else if (priority > other.priority)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    public void PrintInfo()
+    {
+        Console.WriteLine($"itemName:{itemName} priority:{priority}");
+    }
+}
+*/
+#endregion

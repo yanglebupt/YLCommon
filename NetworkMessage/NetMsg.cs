@@ -1,6 +1,4 @@
-﻿using YLCommon;
-
-namespace YLCommon
+﻿namespace YLCommon
 {
     [Serializable]
     public class NetMsg : TCPMessage

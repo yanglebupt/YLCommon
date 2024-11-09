@@ -7,11 +7,10 @@ Logger.EnableSetting();
 
 NetworkConfig.logger.warn = Logger.Warn;
 NetworkConfig.logger.error = Logger.Error;
-NetworkConfig.logger.info = Logger.Log;
-NetworkConfig.logger.ok = (string m) => Logger.ColorLog(LogColor.Green, m);
+NetworkConfig.logger.info = Logger.Info;
 
 
-Server server = new(3000);
+Server server = new(3000, true);
 
 /*
 TCPServer<NetMsg> server = new(3000);

@@ -47,7 +47,15 @@ namespace YLCommon
         /// </summary>
         public Action<SocketError>? OnError;
 
-        public TCPServer(short port, int connectionPoolSize = 100 ,int backlog = 10) {
+        public short port;
+        public int connectionPoolSize;
+        public int backlog;
+
+        public TCPServer(short port, bool startImmediately = false, int connectionPoolSize = 100 ,int backlog = 10) {
+            this.port = port;
+            this.connectionPoolSize = connectionPoolSize;
+            this.backlog = backlog;
+
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, port);
             socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             socket.Bind(endPoint);
@@ -55,17 +63,18 @@ namespace YLCommon
             saea = new SocketAsyncEventArgs();
             saea.Completed += Saea_Completed;
 
-            
             conPool = new(connectionPoolSize);
             clients = new();
             acceptSemaphore = new(connectionPoolSize, connectionPoolSize);
-            
 
+            if (startImmediately) Start();
+        }
+
+        public void Start()
+        {
             // 开始监听，并接收请求
             socket.Listen(backlog);
-
-            NetworkConfig.logger.ok?.Invoke($"Server Start at {port} Port");
-
+            NetworkConfig.logger.info?.Invoke($"Server Start at {port} Port");
             StartAccept();
         }
 
@@ -103,7 +112,7 @@ namespace YLCommon
             // 用户发送了消息回调
             con.OnMessage += OnMessage;
             con.OnError += OnError;
-            NetworkConfig.logger.ok?.Invoke($"New Connection {socket.RemoteEndPoint}");
+            NetworkConfig.logger.info?.Invoke($"New Connection {socket.RemoteEndPoint}");
             OnClientConnected?.Invoke(con.ID);
             StartAccept();
         }
@@ -187,7 +196,7 @@ namespace YLCommon
     /// <typeparam name="T">数据包类型</typeparam>
     public abstract class ITCPServer<T> : TCPServer<T> where T : TCPMessage
     {
-        protected ITCPServer(short port, int connectionPoolSize = 100, int backlog = 10) : base(port, connectionPoolSize, backlog) {
+        protected ITCPServer(short port, bool startImmediately = false, int connectionPoolSize = 100, int backlog = 10) : base(port, startImmediately, connectionPoolSize, backlog) {
             OnClientDisconnected += ClientDisconnected;
             OnClientConnected += ClientConnected;
             OnMessage += Message;
