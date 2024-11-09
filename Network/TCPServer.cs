@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -7,6 +8,14 @@ using System.Threading;
 
 namespace YLCommon
 {
+    public class ServerConfig
+    {
+        public short port;
+        public bool startImmediately = false;
+        public bool external_handle = false;
+        public int connectionPoolSize = 100;
+        public int backlog = 10;
+    }
     /// <summary>
     /// 提供两个使用方法，一种是直接 new TCPServer，然后注册回调函数进行处理
     /// 另一种是先实现抽象类 ITCPServer<T>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
@@ -14,6 +23,56 @@ namespace YLCommon
     /// <typeparam name="T">数据包类型</typeparam>
     public class TCPServer<T> where T : TCPMessage
     {
+        public class NetSession
+        {
+            private TCPServer<T> server;
+            public ulong ID;
+            public NetSession(TCPServer<T> server, ulong ID)
+            {
+                this.server = server;
+                this.ID = ID;
+            }
+
+            public void SendTo(ulong ID, T message)
+            {
+                server.SendTo(ID, message);
+            }
+            public void SendTo(ulong ID, byte[] message)
+            {
+                server.SendTo(ID, message);
+            }
+            public void Send(T message)
+            {
+                server.SendTo(ID, message);
+            }
+            public void Send(byte[] message)
+            {
+                server.SendTo(ID, message);
+            }
+            public void SendAll(T message)
+            {
+                server.SendAll(message);
+            }
+            public void SendAll(byte[] message)
+            {
+                server.SendAll(message);
+            }
+            public void SendAll(T message, ulong ID)
+            {
+                server.SendAll(message, ID);
+            }
+            public void SendAll(byte[] message, ulong ID)
+            {
+                server.SendAll(message, ID);
+            }
+        }
+        public class NetPackage
+        {
+            public NetSession session;
+            public T message;
+        }
+        private ConcurrentQueue<NetPackage>? packages;
+
         private Socket socket;
         private SocketAsyncEventArgs saea;
 
@@ -36,45 +95,48 @@ namespace YLCommon
         /// 客户端断开连接回调
         /// </summary>
         public Action<ulong>? OnClientConnected;
-        
+
         /// <summary>
-        /// 接收消息回调
+        /// 接收消息回调，OnMessage 和 OnPackage 是两种不同风格的形式，只需要写一个即可
         /// </summary>
         public Action<ulong, T>? OnMessage;
-        
+
+        /// <summary>
+        /// 接收消息回调，OnMessage 和 OnPackage 是两种不同风格的形式，只需要写一个即可
+        /// </summary>
+        public Action<NetPackage>? OnPackage;
+
         /// <summary>
         /// 其他错误回调
         /// </summary>
         public Action<SocketError>? OnError;
 
-        public short port;
-        public int connectionPoolSize;
-        public int backlog;
+        public ServerConfig config;
 
-        public TCPServer(short port, bool startImmediately = false, int connectionPoolSize = 100 ,int backlog = 10) {
-            this.port = port;
-            this.connectionPoolSize = connectionPoolSize;
-            this.backlog = backlog;
+        public TCPServer(ServerConfig config) {
+            this.config = config;
 
-            IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, port);
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, config.port);
             socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             socket.Bind(endPoint);
 
             saea = new SocketAsyncEventArgs();
             saea.Completed += Saea_Completed;
 
-            conPool = new(connectionPoolSize);
+            conPool = new(config.connectionPoolSize);
             clients = new();
-            acceptSemaphore = new(connectionPoolSize, connectionPoolSize);
+            acceptSemaphore = new(config.connectionPoolSize, config.connectionPoolSize);
 
-            if (startImmediately) Start();
+            if (config.external_handle) packages = new();
+
+            if (config.startImmediately) Start();
         }
 
         public void Start()
         {
             // 开始监听，并接收请求
-            socket.Listen(backlog);
-            NetworkConfig.logger.info?.Invoke($"Server Start at {port} Port");
+            socket.Listen(config.backlog);
+            NetworkConfig.logger.info?.Invoke($"Server Start at {config.port} Port");
             StartAccept();
         }
 
@@ -110,11 +172,40 @@ namespace YLCommon
             // 用户下线回调
             con.OnDisconnected += OnDisconnect;
             // 用户发送了消息回调
-            con.OnMessage += OnMessage;
+            con.OnMessage += PackMessage;
             con.OnError += OnError;
             NetworkConfig.logger.info?.Invoke($"New Connection {socket.RemoteEndPoint}");
             OnClientConnected?.Invoke(con.ID);
             StartAccept();
+        }
+
+        private void PackMessage(ulong ID, T message)
+        {
+            if (config.external_handle)
+            {
+                NetPackage package = new NetPackage { message = message, session = new NetSession(this, ID) };
+                packages!.Enqueue(package); 
+            }
+            else
+            {
+                OnMessage?.Invoke(ID, message);
+                NetPackage package = new NetPackage { message = message, session = new NetSession(this, ID) };
+                OnPackage?.Invoke(package);
+            }
+        }
+
+        public void Tick()
+        {
+            if (!config.external_handle || packages == null) return;
+            
+            while (!packages.IsEmpty)
+            {
+                if (packages.TryDequeue(out NetPackage package))
+                {
+                    OnMessage?.Invoke(package.session.ID, package.message);
+                    OnPackage?.Invoke(package);
+                }
+            }
         }
 
 
@@ -196,27 +287,33 @@ namespace YLCommon
     /// <typeparam name="T">数据包类型</typeparam>
     public abstract class ITCPServer<T> : TCPServer<T> where T : TCPMessage
     {
-        protected ITCPServer(short port, bool startImmediately = false, int connectionPoolSize = 100, int backlog = 10) : base(port, startImmediately, connectionPoolSize, backlog) {
+        protected ITCPServer(ServerConfig config) : base(config) {
             OnClientDisconnected += ClientDisconnected;
             OnClientConnected += ClientConnected;
             OnMessage += Message;
+            OnPackage += Package;
             OnError += Error;
         }
 
         /// <summary>
         /// 客户端连接回调
         /// </summary>
-        public abstract void ClientDisconnected(ulong ID);
+        public virtual void ClientDisconnected(ulong ID) { }
 
         /// <summary>
         /// 客户端断开连接回调
         /// </summary>
-        public abstract void ClientConnected(ulong ID);
+        public virtual void ClientConnected(ulong ID) { }
 
         /// <summary>
         /// 接收消息回调
         /// </summary>
-        public abstract void Message(ulong ID, T message);
+        public virtual void Message(ulong ID, T message) { }
+
+        /// <summary>
+        /// 接收消息回调
+        /// </summary>
+        public virtual void Package(NetPackage package) { }
 
         /// <summary>
         /// 其他错误回调

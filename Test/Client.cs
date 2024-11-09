@@ -2,7 +2,7 @@
 
 public class Client : ITCPClient<NetMsg>
 {
-    public Client(string ip, short port, bool connectImmediately = false) : base(ip, port, connectImmediately) {}
+    public Client(ClientConfig config) : base(config) {}
 
     public override void Connected()
     {

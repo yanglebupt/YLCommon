@@ -10,7 +10,10 @@ NetworkConfig.logger.error = Logger.Error;
 NetworkConfig.logger.info = Logger.Info;
 
 
-Server server = new(3000, true);
+Server server = new (new ServerConfig{
+    port= 3000,
+    startImmediately =  true
+});
 
 /*
 TCPServer<NetMsg> server = new(3000);

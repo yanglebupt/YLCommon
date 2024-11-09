@@ -119,7 +119,12 @@ NetworkConfig.logger.warn = Logger.Warn;
 NetworkConfig.logger.error = Logger.Error;
 NetworkConfig.logger.info = Logger.Info;
 
-Client client = new("127.0.0.1", 3000, true);
+Client client = new(new ClientConfig
+{
+    ip="127.0.0.1", 
+    port= 3000, 
+    connectImmediately = true
+});
 
 /*
 TCPClient<NetMsg> client = new("127.0.0.1", 3000);

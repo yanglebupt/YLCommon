@@ -2,7 +2,7 @@
 
 public class Server : ITCPServer<NetMsg>
 {
-    public Server(short port, bool startImmediately = false, int connectionPoolSize = 100, int backlog = 10) : base(port, startImmediately, connectionPoolSize, backlog)
+    public Server(ServerConfig config) : base(config)
     {
     }
 

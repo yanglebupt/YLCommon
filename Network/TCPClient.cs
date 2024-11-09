@@ -1,10 +1,19 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 
 
 namespace YLCommon
 {
+    public class ClientConfig
+    {
+        public string ip;
+        public short port;
+        public bool connectImmediately = false;
+        public bool external_handle = false;
+    }
+
     /// <summary>
     /// 提供两个使用方法，一种是直接 new TCPClient，然后注册回调函数进行处理
     /// 另一种是先实现抽象类 ITCPClient<T>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
@@ -12,13 +21,38 @@ namespace YLCommon
     /// <typeparam name="T">数据包类型</typeparam>
     public class TCPClient<T> where T : TCPMessage
     {
+        public class NetSession
+        {
+            private TCPClient<T> client;
+            public ulong ID;
+            public NetSession(TCPClient<T> client, ulong ID)
+            {
+                this.client = client;
+                this.ID = ID;
+            }
+
+            public void Send(T message)
+            {
+                client.Send(message);
+            }
+            public void Send(byte[] data)
+            {
+                client.Send(data);
+            }
+        }
+        public class NetPackage
+        {
+            public NetSession session;
+            public T message;
+        }
+        private ConcurrentQueue<NetPackage>? packages;
+
         private Socket socket;
         private SocketAsyncEventArgs saea;
         
         private TCPConnection<T> ?connection;
 
         // 外部信号
-
         /// <summary>
         /// 连接成功回调
         /// </summary>
@@ -35,17 +69,25 @@ namespace YLCommon
         public Action? OnDisconnected;
 
         /// <summary>
-        /// 接收消息回调
+        /// 接收消息回调，OnMessage 和 OnPackage 是两种不同风格的形式，只需要写一个即可
         /// </summary>
         public Action<T>? OnMessage;
+
+        /// <summary>
+        /// 接收消息回调，OnMessage 和 OnPackage 是两种不同风格的形式，只需要写一个即可
+        /// </summary>
+        public Action<NetPackage>? OnPackage;
 
         /// <summary>
         /// 其他错误回调
         /// </summary>
         public Action<SocketError>? OnError;
 
-        public TCPClient(string ip, short port, bool connectImmediately = false) {
-            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(ip), port);
+        public ClientConfig config;
+
+        public TCPClient(ClientConfig config) {
+            this.config = config;
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(config.ip), config.port);
             socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             
             // 异步连接
@@ -53,7 +95,9 @@ namespace YLCommon
             saea.RemoteEndPoint = endPoint;
             saea.Completed += Saea_Completed;
 
-            if (connectImmediately) Connect();
+            if (config.external_handle) packages = new();
+
+            if (config.connectImmediately) Connect();
         }
 
         public void Connect()
@@ -82,12 +126,39 @@ namespace YLCommon
             connection = new();
             connection.Init(socket, 1);
             connection.OnError += OnError;
-            connection.OnMessage += (ulong _, T m) => OnMessage?.Invoke(m);
+            connection.OnMessage += PackMessage;
             connection.OnDisconnected += (ulong _) => OnDisconnected?.Invoke();
             OnConnected?.Invoke();
         }
 
-        
+        private void PackMessage(ulong ID, T message)
+        {
+            if (config.external_handle)
+            {
+                NetPackage package = new NetPackage { message = message, session = new NetSession(this, ID) };
+                packages!.Enqueue(package);
+            }
+            else
+            {
+                OnMessage?.Invoke(message);
+                NetPackage package = new NetPackage { message = message, session = new NetSession(this, ID) };
+                OnPackage?.Invoke(package);
+            }
+        }
+
+        public void Tick()
+        {
+            if (!config.external_handle || packages == null) return;
+            while (!packages.IsEmpty)
+            {
+                if (packages.TryDequeue(out NetPackage package))
+                {
+                    OnMessage?.Invoke(package.message);
+                    OnPackage?.Invoke(package);
+                }
+            }
+        }
+
         // 客户端主动关闭连接
         public void Close()
         {
@@ -112,33 +183,39 @@ namespace YLCommon
     /// <typeparam name="T">数据包类型</typeparam>
     public abstract class ITCPClient<T> : TCPClient<T> where T: TCPMessage
     {
-        public ITCPClient(string ip, short port, bool connectImmediately = false) : base(ip, port, connectImmediately) {
+        public ITCPClient(ClientConfig config) : base(config) {
             OnConnected += Connected;
             OnConnectionFailed += ConnectionFailed;
             OnDisconnected += Disconnected;
             OnMessage += Message;
+            OnPackage += Package;
             OnError += Error;
         }
 
         /// <summary>
         /// 连接成功回调
         /// </summary>
-        public abstract void Connected();
+        public virtual void Connected() { }
 
         /// <summary>
         /// 连接失败回调
         /// </summary>
-        public abstract void ConnectionFailed();
+        public virtual void ConnectionFailed() { }
 
         /// <summary>
         /// 断开连接回调
         /// </summary>
-        public abstract void Disconnected();
+        public virtual void Disconnected() { }
 
         /// <summary>
         /// 接收消息回调
         /// </summary>
-        public abstract void Message(T message);
+        public virtual void Message(T message) { }
+
+        /// <summary>
+        /// 接收消息回调
+        /// </summary>
+        public virtual void Package(NetPackage package) { }
 
         /// <summary>
         /// 其他错误回调
