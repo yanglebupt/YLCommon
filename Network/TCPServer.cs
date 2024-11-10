@@ -21,19 +21,19 @@ namespace YLCommon
     /// 另一种是先实现抽象类 ITCPServer<T>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
     /// </summary>
     /// <typeparam name="T">数据包类型</typeparam>
-    public class TCPServer<T> where T : TCPMessage
+    public class TCPServer<H> where H : TCPHeader
     {
         public class NetSession
         {
-            private TCPServer<T> server;
+            private TCPServer<H> server;
             public ulong ID;
-            public NetSession(TCPServer<T> server, ulong ID)
+            public NetSession(TCPServer<H> server, ulong ID)
             {
                 this.server = server;
                 this.ID = ID;
             }
 
-            public void SendTo(ulong ID, T message)
+            public void SendTo(ulong ID, TCPMessage<H> message)
             {
                 server.SendTo(ID, message);
             }
@@ -41,7 +41,7 @@ namespace YLCommon
             {
                 server.SendTo(ID, message);
             }
-            public void Send(T message)
+            public void Send(TCPMessage<H> message)
             {
                 server.SendTo(ID, message);
             }
@@ -49,7 +49,7 @@ namespace YLCommon
             {
                 server.SendTo(ID, message);
             }
-            public void SendAll(T message)
+            public void SendAll(TCPMessage<H> message)
             {
                 server.SendAll(message);
             }
@@ -57,7 +57,7 @@ namespace YLCommon
             {
                 server.SendAll(message);
             }
-            public void SendAll(T message, ulong ID)
+            public void SendAll(TCPMessage<H> message, ulong ID)
             {
                 server.SendAll(message, ID);
             }
@@ -69,15 +69,15 @@ namespace YLCommon
         public class NetPackage
         {
             public NetSession session;
-            public T message;
+            public TCPMessage<H> message;
         }
         private ConcurrentQueue<NetPackage>? packages;
 
         private Socket socket;
         private SocketAsyncEventArgs saea;
 
-        private TCPConnectionPool<T> conPool;
-        private Dictionary<ulong, TCPConnection<T>> clients;
+        private TCPConnectionPool<H> conPool;
+        private Dictionary<ulong, TCPConnection<H>> clients;
 
         // 通过信号量 限制最大连接数
         private Semaphore acceptSemaphore;
@@ -99,7 +99,7 @@ namespace YLCommon
         /// <summary>
         /// 接收消息回调，OnMessage 和 OnPackage 是两种不同风格的形式，只需要写一个即可
         /// </summary>
-        public Action<ulong, T>? OnMessage;
+        public Action<ulong, TCPMessage<H>>? OnMessage;
 
         /// <summary>
         /// 接收消息回调，OnMessage 和 OnPackage 是两种不同风格的形式，只需要写一个即可
@@ -163,7 +163,7 @@ namespace YLCommon
         private void OnConnection()
         {
             Socket socket = saea.AcceptSocket;
-            TCPConnection<T> con = conPool.Pop();
+            TCPConnection<H> con = conPool.Pop();
             con.Init(socket, ++clientID);
             lock (clients)
             {
@@ -179,7 +179,7 @@ namespace YLCommon
             StartAccept();
         }
 
-        private void PackMessage(ulong ID, T message)
+        private void PackMessage(ulong ID, TCPMessage<H> message)
         {
             if (config.external_handle)
             {
@@ -233,7 +233,7 @@ namespace YLCommon
                 con.Close();
         }
 
-        public void SendTo(ulong ID, T message)
+        public void SendTo(ulong ID, TCPMessage<H> message)
         {
             if(clients.TryGetValue(ID, out var con))
                 con.Send(message);
@@ -245,7 +245,7 @@ namespace YLCommon
                 con.Send(message);
         }
 
-        public void SendAll(T message)
+        public void SendAll(TCPMessage<H> message)
         {
             foreach (var item in clients)
             {
@@ -260,7 +260,7 @@ namespace YLCommon
             }
         }
 
-        public void SendAll(T message, ulong ID)
+        public void SendAll(TCPMessage<H> message, ulong ID)
         {
             foreach (var item in clients)
             {
@@ -285,7 +285,7 @@ namespace YLCommon
     /// 另一种是先实现抽象类 ITCPServer<T>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
     /// </summary>
     /// <typeparam name="T">数据包类型</typeparam>
-    public abstract class ITCPServer<T> : TCPServer<T> where T : TCPMessage
+    public abstract class ITCPServer<H> : TCPServer<H> where H : TCPHeader
     {
         protected ITCPServer(ServerConfig config) : base(config) {
             OnClientDisconnected += ClientDisconnected;
@@ -308,7 +308,7 @@ namespace YLCommon
         /// <summary>
         /// 接收消息回调
         /// </summary>
-        public virtual void Message(ulong ID, T message) { }
+        public virtual void Message(ulong ID, TCPMessage<H> message) { }
 
         /// <summary>
         /// 接收消息回调

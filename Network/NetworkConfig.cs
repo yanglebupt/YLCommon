@@ -5,9 +5,28 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 namespace YLCommon
 {
+    [Serializable]
+    public class TCPHeader { }
 
     [Serializable]
-    public class TCPMessage { }
+    public class TCPMessage<H> where H: TCPHeader {
+        public H header;
+        public byte[] body;
+
+        public void SetBody<T>(T obj)
+        {
+            byte[]? buffer = NetworkConfig.Serialize(obj);
+            if( buffer != null)
+                body = buffer;
+        }
+
+        public T? GetBody<T>()
+        {
+            T? obj = NetworkConfig.Deserialize<T>(body);
+            return obj;
+        }
+    }
+
     public class NetworkConfig
     {
         // 日志输出
@@ -24,7 +43,7 @@ namespace YLCommon
         public static Logger logger = new();
 
         // 序列化
-        public static byte[]? Serialize<T>(T message) where T: TCPMessage
+        public static byte[]? Serialize<T>(T message)
         {
             byte[] ?data = null;
             MemoryStream ms = new();
@@ -49,9 +68,9 @@ namespace YLCommon
         }
 
         // 反序列化
-        public static T? Deserialize<T>(byte[] data) where T : TCPMessage
+        public static T? Deserialize<T>(byte[] data)
         {
-            T? message = null;
+            T? message = default(T);
             // 将 bytes 写入到 MemoryStream 这个 Buffer 中
             MemoryStream ms = new(data);
             BinaryFormatter bf = new();

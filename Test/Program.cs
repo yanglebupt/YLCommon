@@ -152,7 +152,9 @@ while (true)
     if (ipt == "del") client.Close();
     else
     {
-        NetMsg msg = new NetMsg() { name = ipt };
+        NetBody body = new NetBody { name = ipt };
+        TCPMessage<NetHeader> msg = new() { header = new NetHeader { cmd = Cmd.Do } };
+        msg.SetBody(body);
         client.Send(msg);
     }
 }

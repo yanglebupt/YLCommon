@@ -1,6 +1,6 @@
 ﻿using YLCommon;
 
-public class Client : ITCPClient<NetMsg>
+public class Client : ITCPClient<NetHeader>
 {
     public Client(ClientConfig config) : base(config) {}
 
@@ -19,8 +19,8 @@ public class Client : ITCPClient<NetMsg>
         Logger.Warn("Disconnect");
     }
 
-    public override void Message(NetMsg msg)
+    public override void Message(TCPMessage<NetHeader> msg)
     {
-        Logger.Info(msg.name);
+        Logger.Info(msg.GetBody<NetBody>()?.name);
     }
 }

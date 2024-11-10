@@ -16,22 +16,22 @@ namespace YLCommon
 
     /// <summary>
     /// 提供两个使用方法，一种是直接 new TCPClient，然后注册回调函数进行处理
-    /// 另一种是先实现抽象类 ITCPClient<T>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
+    /// 另一种是先实现抽象类 ITCPClient<TCPMessage<H>>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
     /// </summary>
     /// <typeparam name="T">数据包类型</typeparam>
-    public class TCPClient<T> where T : TCPMessage
+    public class TCPClient<H> where H : TCPHeader
     {
         public class NetSession
         {
-            private TCPClient<T> client;
+            private TCPClient<H> client;
             public ulong ID;
-            public NetSession(TCPClient<T> client, ulong ID)
+            public NetSession(TCPClient<H> client, ulong ID)
             {
                 this.client = client;
                 this.ID = ID;
             }
 
-            public void Send(T message)
+            public void Send(TCPMessage<H> message)
             {
                 client.Send(message);
             }
@@ -43,14 +43,14 @@ namespace YLCommon
         public class NetPackage
         {
             public NetSession session;
-            public T message;
+            public TCPMessage<H> message;
         }
         private ConcurrentQueue<NetPackage>? packages;
 
         private Socket socket;
         private SocketAsyncEventArgs saea;
         
-        private TCPConnection<T> ?connection;
+        private TCPConnection<H> ?connection;
 
         // 外部信号
         /// <summary>
@@ -71,7 +71,7 @@ namespace YLCommon
         /// <summary>
         /// 接收消息回调，OnMessage 和 OnPackage 是两种不同风格的形式，只需要写一个即可
         /// </summary>
-        public Action<T>? OnMessage;
+        public Action<TCPMessage<H>>? OnMessage;
 
         /// <summary>
         /// 接收消息回调，OnMessage 和 OnPackage 是两种不同风格的形式，只需要写一个即可
@@ -131,7 +131,7 @@ namespace YLCommon
             OnConnected?.Invoke();
         }
 
-        private void PackMessage(ulong ID, T message)
+        private void PackMessage(ulong ID, TCPMessage<H> message)
         {
             if (config.external_handle)
             {
@@ -165,7 +165,7 @@ namespace YLCommon
             connection?.Close();
         }
 
-        public void Send(T message)
+        public void Send(TCPMessage<H> message)
         {
             connection?.Send(message);
         }
@@ -178,10 +178,10 @@ namespace YLCommon
 
     /// <summary>
     /// 提供两个使用方法，一种是直接 new TCPClient，然后注册回调函数进行处理
-    /// 另一种是先实现抽象类 ITCPClient<T>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
+    /// 另一种是先实现抽象类 ITCPClient<TCPMessage<H>>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
     /// </summary>
     /// <typeparam name="T">数据包类型</typeparam>
-    public abstract class ITCPClient<T> : TCPClient<T> where T: TCPMessage
+    public abstract class ITCPClient<H>: TCPClient<H> where H : TCPHeader
     {
         public ITCPClient(ClientConfig config) : base(config) {
             OnConnected += Connected;
@@ -210,7 +210,7 @@ namespace YLCommon
         /// <summary>
         /// 接收消息回调
         /// </summary>
-        public virtual void Message(T message) { }
+        public virtual void Message(TCPMessage<H> message) { }
 
         /// <summary>
         /// 接收消息回调

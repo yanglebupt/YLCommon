@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace YLCommon
 {
-    public class TCPConnection<T> where T: TCPMessage
+    public class TCPConnection<H> where H : TCPHeader
     {
         public enum ConnectionState
         {
@@ -36,7 +36,7 @@ namespace YLCommon
 
         public Action<SocketError>? OnError;
         public Action<ulong> ? OnDisconnected;
-        public Action<ulong, T> ? OnMessage;
+        public Action<ulong, TCPMessage<H>> ? OnMessage;
 
         public TCPConnection() {
             // 可复用
@@ -124,18 +124,18 @@ namespace YLCommon
             }
             if (body == null) return;
             // 反序列化
-            T? message = NetworkConfig.Deserialize<T>(body);
+            TCPMessage<H>? message = NetworkConfig.Deserialize<TCPMessage<H>>(body);
             if (message != null) OnMessage?.Invoke(ID, message);
             // 继续拼装消息，直到 incoming 不够
             TryMessage();
         }
 
-        public void Send(T message) {
+        public void Send(TCPMessage<H> message) {
             if (state != ConnectionState.Connected) {
                 NetworkConfig.logger.warn?.Invoke("Connection is break, cannot send message!");
                 return;
             }
-            byte[] ?data =  NetworkConfig.Serialize<T>(message);
+            byte[] ?data =  NetworkConfig.Serialize(message);
             if (data != null) {
                 // 拼上 Header
                 int size = data.Length;

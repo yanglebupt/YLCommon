@@ -3,9 +3,9 @@ using System.Collections.Generic;
 
 namespace YLCommon
 {
-    public class TCPConnectionPool<T> where T : TCPMessage
+    public class TCPConnectionPool<H> where H : TCPHeader
     {
-        private readonly Stack<TCPConnection<T>> pool;
+        private readonly Stack<TCPConnection<H>> pool;
 
         public int Size => pool.Count;
 
@@ -14,19 +14,19 @@ namespace YLCommon
             pool = new(capacity);
             for (int i = 0; i < capacity; i++)
             {
-                var con = new TCPConnection<T>();
+                var con = new TCPConnection<H>();
                 pool.Push(con);
             }
         }
 
-        public TCPConnection<T> Pop() {
+        public TCPConnection<H> Pop() {
             lock (pool)
             {
                 return pool.Pop();
             }
         }
 
-        public void Push(TCPConnection<T> con)
+        public void Push(TCPConnection<H> con)
         {
             if (con == null) return;
             lock (pool)
@@ -36,7 +36,7 @@ namespace YLCommon
                 con.OnMessage = null;
                 con.OnError = null;
                 con.OnDisconnected = null;
-                con.state = TCPConnection<T>.ConnectionState.None;
+                con.state = TCPConnection<H>.ConnectionState.None;
                 pool.Push(con);
             }
         }
