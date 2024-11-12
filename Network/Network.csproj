@@ -6,4 +6,8 @@
 	<LangVersion>9.0</LangVersion>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MessagePack" Version="1.7.3.4" />
+  </ItemGroup>
+
 </Project>

@@ -109,22 +109,23 @@ namespace YLCommon
         // 分割消息
         private void TryMessage()
         {
-            byte[]? body = null;
-            // Header Size = 4
+            byte[]? data = null;
+            // 整个包的大小为 4 个字节
             if (incoming.Count > 4) {
-                byte[] data = incoming.ToArray();
-                int body_size = BitConverter.ToInt32(data, 0);
+                byte[] incomingBytes = incoming.ToArray();
+                int data_size = BitConverter.ToInt32(incomingBytes, 0);
+                int pack_size = 4 + data_size;
                 // 只有当完整的包接收完了，才会删除已处理的，并返回
-                if (incoming.Count >= 4 + body_size)
+                if (incoming.Count >= pack_size)
                 {
-                    body = new byte[body_size];
-                    Buffer.BlockCopy(data, 4, body, 0, body_size);
-                    incoming.RemoveRange(0, 4 + body_size);
+                    data = new byte[data_size];
+                    Buffer.BlockCopy(incomingBytes, 4, data, 0, data_size);
+                    incoming.RemoveRange(0, pack_size);
                 }
             }
-            if (body == null) return;
+            if (data == null) return;
             // 反序列化
-            TCPMessage<H>? message = NetworkConfig.Deserialize<TCPMessage<H>>(body);
+            TCPMessage<H>? message = NetworkConfig.Deserialize<TCPMessage<H>>(data);
             if (message != null) OnMessage?.Invoke(ID, message);
             // 继续拼装消息，直到 incoming 不够
             TryMessage();
@@ -135,25 +136,18 @@ namespace YLCommon
                 NetworkConfig.logger.warn?.Invoke("Connection is break, cannot send message!");
                 return;
             }
-            byte[] ?data =  NetworkConfig.Serialize(message);
-            if (data != null) {
-                // 拼上 Header
-                int size = data.Length;
-                byte[] pack = new byte[4+size];
-                BitConverter.GetBytes(size).CopyTo(pack, 0);
-                data.CopyTo(pack, 4);
-                Send(pack);
-            }
+            byte[] ?pack =  NetworkConfig.SerializePack(message);
+            if (pack != null) Send(pack);
         }
 
-        public void Send(byte[] data)
+        public void Send(byte[] pack)
         {
             if (state != ConnectionState.Connected) {
                 NetworkConfig.logger.warn?.Invoke("Connection is break, cannot send message!");
                 return;
             }
             bool isEmpty = outcoming.Count <= 0;
-            outcoming.Enqueue(data);
+            outcoming.Enqueue(pack);
             // 开启发送数据
             if (isEmpty)
                 Write();

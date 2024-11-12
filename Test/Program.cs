@@ -155,7 +155,9 @@ while (true)
         NetBody body = new NetBody { name = ipt };
         TCPMessage<NetHeader> msg = new() { header = new NetHeader { cmd = Cmd.Do } };
         msg.SetBody(body);
-        client.Send(msg);
+
+        byte[]? data = NetworkConfig.SerializePack(msg);
+        client.Send(data);
     }
 }
 #endregion

@@ -14,7 +14,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Logger\Logger.csproj" />
     <ProjectReference Include="..\NetworkMessage\NetworkMessage.csproj" />
-    <ProjectReference Include="..\Network\Network.csproj" />
     <ProjectReference Include="..\PriorityQueue\PriorityQueue.csproj" />
     <ProjectReference Include="..\Timer\Timer.csproj" />
   </ItemGroup>
