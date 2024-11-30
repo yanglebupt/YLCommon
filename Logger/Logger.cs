@@ -178,7 +178,7 @@ namespace YLCommon
             // 只写入一个文件
             if (cfg.saveOverride)
             {
-                loggerSaveFile = cfg.saveDir + cfg.saveFilename;
+                loggerSaveFile = Path.Combine(cfg.saveDir, $"{cfg.saveFilename}.txt");
                 try
                 {
                     // 覆盖写，则先删除原文件，然后在新建文件写入
@@ -196,8 +196,7 @@ namespace YLCommon
             else
             {
                 // 文件名不同，以调用 setting 方法的时间决定，当然你可以
-                string filename = cfg.saveDir + cfg.saveFilename + DateTime.Now.ToString("yyyy-MM-dd@HH-mm-ss-fff");
-                loggerSaveFile = filename + ".txt";
+                loggerSaveFile = Path.Combine(cfg.saveDir, $"{cfg.saveFilename}@{DateTime.Now.ToString("yyyy-MM-dd@HH-mm-ss-fff")}.txt");
                 try
                 {
                     if (!Directory.Exists(cfg.saveDir))

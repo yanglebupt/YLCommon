@@ -17,17 +17,18 @@ namespace YLCommon
         public int backlog = 10;
     }
     /// <summary>
-    /// 提供两个使用方法，一种是直接 new TCPServer，然后注册回调函数进行处理
-    /// 另一种是先实现抽象类 ITCPServer<T>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
+    /// 提供两个使用方法，一种是直接 += 注册回调，另一种是 override 回调
     /// </summary>
-    /// <typeparam name="T">数据包类型</typeparam>
-    public class TCPServer<H> where H : TCPHeader
+    /// <typeparam name="H">数据包头类型</typeparam>
+    /// <typeparam name="T">事件类型</typeparam>
+    public class TCPServer<H, T> : EventEmitter<T> where H : TCPHeader
     {
+        // TODO: 还需要加权限，用户一旦退出不能使用
         public class NetSession
         {
-            private TCPServer<H> server;
+            private TCPServer<H, T> server;
             public ulong ID;
-            public NetSession(TCPServer<H> server, ulong ID)
+            public NetSession(TCPServer<H, T> server, ulong ID)
             {
                 this.server = server;
                 this.ID = ID;
@@ -64,6 +65,26 @@ namespace YLCommon
             public void SendAll(byte[] message, ulong ID)
             {
                 server.SendAll(message, ID);
+            }
+
+            public static bool operator ==(NetSession s1, NetSession? s2)
+            {
+                return s1.Equals(s2);
+            }
+
+            public static bool operator !=(NetSession s1, NetSession? s2)
+            {
+                return !(s1 == s2);
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is NetSession s && s.ID == ID && s.server == server;
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(ID, server.GetHashCode());
             }
         }
         public class NetPackage
@@ -116,6 +137,12 @@ namespace YLCommon
         public TCPServer(ServerConfig config) {
             this.config = config;
 
+            OnClientDisconnected += ClientDisconnected;
+            OnClientConnected += ClientConnected;
+            OnMessage += Message;
+            OnPackage += Package;
+            OnError += Error;
+
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, config.port);
             socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             socket.Bind(endPoint);
@@ -138,6 +165,7 @@ namespace YLCommon
             socket.Listen(config.backlog);
             NetworkConfig.logger.info?.Invoke($"Server Start at {config.port} Port");
             StartAccept();
+            Init();
         }
 
         private void StartAccept()
@@ -194,7 +222,7 @@ namespace YLCommon
             }
         }
 
-        public void Tick()
+        public new void Tick()
         {
             if (!config.external_handle || packages == null) return;
             
@@ -206,6 +234,8 @@ namespace YLCommon
                     OnPackage?.Invoke(package);
                 }
             }
+
+            base.Tick();
         }
 
 
@@ -231,6 +261,12 @@ namespace YLCommon
         {
             if (clients.TryGetValue(ID, out var con))
                 con.Close();
+        }
+
+        // TODO: 关闭整个服务器
+        public void Close()
+        {
+            UnInit();
         }
 
         public void SendTo(ulong ID, TCPMessage<H> message)
@@ -277,47 +313,30 @@ namespace YLCommon
                 item.Value.Send(message);
             }
         }
-    }
-
-
-    /// <summary>
-    /// 提供两个使用方法，一种是直接 new TCPServer，然后注册回调函数进行处理
-    /// 另一种是先实现抽象类 ITCPServer<T>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
-    /// </summary>
-    /// <typeparam name="T">数据包类型</typeparam>
-    public abstract class ITCPServer<H> : TCPServer<H> where H : TCPHeader
-    {
-        protected ITCPServer(ServerConfig config) : base(config) {
-            OnClientDisconnected += ClientDisconnected;
-            OnClientConnected += ClientConnected;
-            OnMessage += Message;
-            OnPackage += Package;
-            OnError += Error;
-        }
 
         /// <summary>
         /// 客户端连接回调
         /// </summary>
-        public virtual void ClientDisconnected(ulong ID) { }
+        protected virtual void ClientDisconnected(ulong ID) { }
 
         /// <summary>
         /// 客户端断开连接回调
         /// </summary>
-        public virtual void ClientConnected(ulong ID) { }
+        protected virtual void ClientConnected(ulong ID) { }
 
         /// <summary>
         /// 接收消息回调
         /// </summary>
-        public virtual void Message(ulong ID, TCPMessage<H> message) { }
+        protected virtual void Message(ulong ID, TCPMessage<H> message) { }
 
         /// <summary>
         /// 接收消息回调
         /// </summary>
-        public virtual void Package(NetPackage package) { }
+        protected virtual void Package(NetPackage package) { }
 
         /// <summary>
         /// 其他错误回调
         /// </summary>
-        public virtual void Error(SocketError error) { }
+        protected virtual void Error(SocketError error) { }
     }
 }

@@ -15,12 +15,12 @@ namespace YLCommon
     }
 
     /// <summary>
-    /// 提供两个使用方法，一种是直接 new TCPClient，然后注册回调函数进行处理
-    /// 另一种是先实现抽象类 ITCPClient<TCPMessage<H>>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
+    /// 提供两个使用方法，一种是直接 += 注册回调，另一种是 override 回调
     /// </summary>
-    /// <typeparam name="T">数据包类型</typeparam>
+    /// <typeparam name="H">数据包头类型</typeparam>
     public class TCPClient<H> where H : TCPHeader
     {
+        // TODO: 还需要加权限，用户一旦退出不能使用
         public class NetSession
         {
             private TCPClient<H> client;
@@ -38,6 +38,25 @@ namespace YLCommon
             public void Send(byte[] data)
             {
                 client.Send(data);
+            }
+
+            public static bool operator ==(NetSession s1, NetSession? s2){
+                return s1.Equals(s2);
+            }
+
+            public static bool operator !=(NetSession s1, NetSession? s2)
+            {
+                return !(s1 == s2);
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is NetSession s && s.ID == ID && s.client == client;
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(ID, client.GetHashCode());
             }
         }
         public class NetPackage
@@ -87,6 +106,14 @@ namespace YLCommon
 
         public TCPClient(ClientConfig config) {
             this.config = config;
+
+            OnConnected += Connected;
+            OnConnectionFailed += ConnectionFailed;
+            OnDisconnected += Disconnected;
+            OnMessage += Message;
+            OnPackage += Package;
+            OnError += Error;
+
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(config.ip), config.port);
             socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             
@@ -107,21 +134,21 @@ namespace YLCommon
             // 返回 true，代表连接还未建立成功，需要异步等待完成事件触发
             bool suspend = socket.ConnectAsync(saea);
             if (!suspend)
-                Connected();
+                OnConnection();
         }
 
         private void Saea_Completed(object sender, SocketAsyncEventArgs e)
         {
             SocketError error = saea.SocketError;
             if (error == SocketError.Success)
-                Connected();
+                OnConnection();
             else if (error == SocketError.ConnectionRefused)
                 OnConnectionFailed?.Invoke();
             else
                 OnError?.Invoke(error);
         }
 
-        private void Connected()
+        private void OnConnection()
         {
             connection = new();
             connection.Init(socket, 1);
@@ -174,52 +201,35 @@ namespace YLCommon
         {
             connection?.Send(data);
         }
-    }
-
-    /// <summary>
-    /// 提供两个使用方法，一种是直接 new TCPClient，然后注册回调函数进行处理
-    /// 另一种是先实现抽象类 ITCPClient<TCPMessage<H>>，在类的抽象方法里面进行处理，然后在 new 继承的类即可
-    /// </summary>
-    /// <typeparam name="T">数据包类型</typeparam>
-    public abstract class ITCPClient<H>: TCPClient<H> where H : TCPHeader
-    {
-        public ITCPClient(ClientConfig config) : base(config) {
-            OnConnected += Connected;
-            OnConnectionFailed += ConnectionFailed;
-            OnDisconnected += Disconnected;
-            OnMessage += Message;
-            OnPackage += Package;
-            OnError += Error;
-        }
 
         /// <summary>
         /// 连接成功回调
         /// </summary>
-        public virtual void Connected() { }
+        protected virtual void Connected() { }
 
         /// <summary>
         /// 连接失败回调
         /// </summary>
-        public virtual void ConnectionFailed() { }
+        protected virtual void ConnectionFailed() { }
 
         /// <summary>
         /// 断开连接回调
         /// </summary>
-        public virtual void Disconnected() { }
+        protected virtual void Disconnected() { }
 
         /// <summary>
         /// 接收消息回调
         /// </summary>
-        public virtual void Message(TCPMessage<H> message) { }
+        protected virtual void Message(TCPMessage<H> message) { }
 
         /// <summary>
         /// 接收消息回调
         /// </summary>
-        public virtual void Package(NetPackage package) { }
+        protected virtual void Package(NetPackage package) { }
 
         /// <summary>
         /// 其他错误回调
         /// </summary>
-        public virtual void Error(SocketError error) { }
+        protected virtual void Error(SocketError error) { }
     }
 }

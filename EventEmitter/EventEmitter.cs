@@ -1,9 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace YLCommon
 {
-  using Callback = Action<object>;
+  using Callback = Action<object?>;
   /// <summary>
   /// 事件的订阅和发布类，线程安全
   /// </summary>
@@ -12,8 +13,8 @@ namespace YLCommon
     public class Emitter
     {
       public T evt = default;
-      public object payload = null;
-      public Emitter(T evt, object payload)
+      public object? payload = null;
+      public Emitter(T evt, object? payload)
       {
         this.evt = evt;
         this.payload = payload;
@@ -21,7 +22,7 @@ namespace YLCommon
     }
     private readonly object mutex = new();
     private readonly EventContainer<T> container = new();
-    private readonly Queue<Emitter> emitters = new();
+    private readonly ConcurrentQueue<Emitter> emitters = new();
 
     /// <summary>
     /// 是否存在该事件
@@ -38,7 +39,7 @@ namespace YLCommon
     /// </summary>
     /// <param name="target">对象</param>
     /// <returns>事件集合</returns>
-    public List<T> GetEvents(object target)
+    public List<T>? GetEvents(object target)
     {
       return container.GetEvents(target);
     }
@@ -48,9 +49,14 @@ namespace YLCommon
     /// </summary>
     /// <param name="target">事件</param>
     /// <returns>回调函数集合</returns>
-    public List<Callback> GetActions(T evt)
+    public List<Callback>? GetActions(T evt)
     {
-      return container.GetActions(evt);
+      return container.GetActions(evt)?.cbs;
+    }
+
+    public bool IsOnce(T evt)
+    {
+      return container.GetActions(evt)?.once ?? false;
     }
 
     /// <summary>
@@ -78,14 +84,8 @@ namespace YLCommon
     /// </summary>
     public void Tick()
     {
-      lock (mutex)
-      {
-        while (emitters.Count > 0)
-        {
-          Emitter emitter = emitters.Dequeue();
-          EmitImmediate(emitter.evt, emitter.payload);
-        }
-      }
+      while (emitters.TryDequeue(out Emitter emitter))
+        EmitImmediate(emitter.evt, emitter.payload);
     }
 
     /// <summary>
@@ -93,13 +93,15 @@ namespace YLCommon
     /// </summary>
     /// <param name="evt">事件名字</param>
     /// <param name="payload">事件携带的参数，默认为 null</param>
-    public void EmitImmediate(T evt, object payload = null)
+    public void EmitImmediate(T evt, object? payload = null)
     {
-      if (!container.Has(evt)) return;
-      List<Callback> cbs = container.GetActions(evt);
-      foreach (Callback cb in cbs)
+      lock (mutex)
       {
-        cb(payload);
+        if (!(container.GetActions(evt) is EventCallback ec)) return;
+        foreach (Callback cb in ec.cbs)
+          cb(payload);
+        if (ec.once)
+          container.Remove(evt);
       }
     }
 
@@ -108,13 +110,13 @@ namespace YLCommon
     /// </summary>
     /// <param name="evt">事件名字</param>
     /// <param name="payload">事件携带的参数，默认为 null</param>
-    public void Emit(T evt, object payload = null)
+    public void Emit(T evt, object? payload = null)
     {
       lock (mutex)
       {
         if (!container.Has(evt)) return;
-        emitters.Enqueue(new Emitter(evt, payload));
       }
+      emitters.Enqueue(new Emitter(evt, payload));
     }
 
     /// <summary>
@@ -126,7 +128,15 @@ namespace YLCommon
     {
       lock (mutex)
       {
-        container.Add(evt, cb);
+        container.Add(evt, cb, false);
+      }
+    }
+
+    public void Once(T evt, Callback cb)
+    {
+      lock (mutex)
+      {
+        container.Add(evt, cb, true);
       }
     }
 

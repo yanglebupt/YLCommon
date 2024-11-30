@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 namespace YLCommon
 {
@@ -46,7 +47,7 @@ namespace YLCommon
         public int savefileMaxSize = 10 * 1024 * 1024;
 
         // 默认保存路径在根目录下的 logs 文件夹
-        public string saveDir = $"{AppDomain.CurrentDomain.BaseDirectory}logs\\";
+        public string saveDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
         // log 文件名
         public string saveFilename = "ConsoleLog";
         // 打印的前缀

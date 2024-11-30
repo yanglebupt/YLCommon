@@ -83,7 +83,7 @@ namespace YLCommon
       }
       catch (ThreadAbortException e)
       {
-        logger.warn?.Invoke($"Tick Thread Aborted: {e.Message}");
+        Timer.logger.warn?.Invoke($"Tick Thread Aborted: {e.Message}");
       }
     }
 
@@ -110,12 +110,12 @@ namespace YLCommon
         if (task.count > 0)
         {
           task.count--;
-          // 结束后移除，一下次就不会遍历了
+          // 结束后移除，下一次就不会遍历了
           if (task.count == 0)
           {
             // 线程安全字典，遍历过程中可以移除
             if (!taskMap.TryRemove(tid, out TickTask _))
-              logger.warn?.Invoke($"Task: {tid} remove after finish failed!");
+              Timer.logger.warn?.Invoke($"Task: {tid} remove after finish failed!");
             nextTask = false;
           }
         }
@@ -136,7 +136,7 @@ namespace YLCommon
         if (taskPacks.TryDequeue(out TaskPack tp))
           tp.cb.Invoke(tp.tid);
         else
-          logger.error?.Invoke("taskpack dequeue failed! ");
+          Timer.logger.error?.Invoke("taskpack dequeue failed! ");
       }
     }
 
@@ -148,7 +148,7 @@ namespace YLCommon
       if (taskMap.TryAdd(tid, task)) return tid;
       else
       {
-        logger.warn?.Invoke($"Task: {tid} already exists!");
+        Timer.logger.warn?.Invoke($"Task: {tid} already exists!");
         return 0;
       }
     }
@@ -168,7 +168,7 @@ namespace YLCommon
       }
       else
       {
-        logger.warn?.Invoke($"Task: {tid} cancel failed!");
+        Timer.logger.warn?.Invoke($"Task: {tid} cancel failed!");
         return false;
       }
     }
@@ -176,6 +176,8 @@ namespace YLCommon
     public override void Reset()
     {
       // 需要等待已完成的任务队列全部取出
+      HandleTaskCallback();
+      taskPacks?.Clear();
       taskMap.Clear();
       timerThread?.Abort();
       tid = 0;

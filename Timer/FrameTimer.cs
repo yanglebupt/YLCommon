@@ -55,7 +55,7 @@ namespace YLCommon
             if (taskMap.TryAdd(tid, task)) return tid;
             else
             {
-                logger.warn?.Invoke($"Task: {tid} already exists!");
+                Timer.logger.warn?.Invoke($"Task: {tid} already exists!");
                 return 0;
             }
         }
@@ -83,7 +83,7 @@ namespace YLCommon
             {
                 uint tid = finishedTid[i];
                 if (!taskMap.Remove(tid))
-                    logger.warn?.Invoke($"Task: {tid} remove after finish failed!");
+                    Timer.logger.warn?.Invoke($"Task: {tid} remove after finish failed!");
             }
         }
 
@@ -98,13 +98,13 @@ namespace YLCommon
                 }
                 else
                 {
-                    logger.warn?.Invoke($"Task: {tid} cancel failed!");
+                    Timer.logger.warn?.Invoke($"Task: {tid} cancel failed!");
                     return false;
                 }
             }
             else
             {
-                logger.warn?.Invoke($"Task: {tid} not exist!");
+                Timer.logger.warn?.Invoke($"Task: {tid} not exist!");
                 return false;
             }
         }

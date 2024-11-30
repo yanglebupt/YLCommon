@@ -3,7 +3,13 @@ using System.Collections.Generic;
 
 namespace YLCommon
 {
-  using Callback = Action<object>;
+  using Callback = Action<object?>;
+
+  public struct EventCallback
+  {
+    public List<Callback> cbs;
+    public bool once;
+  }
 
   /// <summary>
   /// 事件的容器类，非线程安全
@@ -11,7 +17,7 @@ namespace YLCommon
   public class EventContainer<T>
   {
     // 事件名到回调函数的映射
-    private readonly Dictionary<T, List<Callback>> event2func = new();
+    private readonly Dictionary<T, EventCallback> event2func = new();
     // 可有可无：注册对象到事件名的映射，一般再注册对象销毁后，其注册的事件也要取消
     private readonly Dictionary<object, List<T>> target2event = new();
 
@@ -36,10 +42,10 @@ namespace YLCommon
     /// </summary>
     /// <param name="target">对象</param>
     /// <returns>事件集合</returns>
-    public List<T> GetEvents(object target)
+    public List<T>? GetEvents(object target)
     {
-      target2event.TryGetValue(target, out List<T> evts);
-      return evts;
+      if(target2event.TryGetValue(target, out List<T> evts)) return evts;
+      return null;
     }
 
     /// <summary>
@@ -47,10 +53,10 @@ namespace YLCommon
     /// </summary>
     /// <param name="target">事件</param>
     /// <returns>回调函数集合</returns>
-    public List<Callback> GetActions(T evt)
+    public EventCallback? GetActions(T evt)
     {
-      event2func.TryGetValue(evt, out List<Callback> cbs);
-      return cbs;
+      if(event2func.TryGetValue(evt, out EventCallback ec)) return ec;
+      return null;
     }
 
     /// <summary>
@@ -58,20 +64,28 @@ namespace YLCommon
     /// </summary>
     /// <param name="evt">事件名称</param>
     /// <param name="cb">回调函数，接受一个 object 的参数，无返回值</param>
-    public void Add(T evt, Callback cb)
+    public void Add(T evt, Callback cb, bool once = false)
     {
       if (cb == null) return;
       // 1. 先出来 event2func
       // 是否存在 event，不存在则创建对应容器
+      EventCallback ec;
       if (!event2func.ContainsKey(evt))
-        event2func[evt] = new List<Callback>();
-      List<Callback> cbs = event2func[evt];
+      {
+        ec = new EventCallback() { once = once, cbs = new() };
+        event2func[evt] = ec;
+      }
+      else
+      {
+        ec = event2func[evt];
+        if (once || ec.once) return;
+      }
 
       // 判断回调是否已经存在，防止重复注册，同一个函数多次回调
-      Callback t_cb = cbs.Find((Callback c) => c.Equals(cb));
+      Callback t_cb = ec.cbs.Find((Callback c) => c.Equals(cb));
       if (t_cb != null) return;
 
-      cbs.Add(cb);
+      ec.cbs.Add(cb);
 
       // 2. 根据 cb.Target 确定注册对象
       object target = cb.Target;
@@ -95,14 +109,14 @@ namespace YLCommon
       if (!event2func.ContainsKey(evt)) return;
 
       // 需要删除每个回调函数，以及回调函数注册对象的事件名
-      List<Callback> cbs = event2func[evt];
+      List<Callback> cbs = event2func[evt].cbs;
       foreach (Callback cb in cbs)
       {
         object target = cb.Target;
         if (target == null || !target2event.ContainsKey(target)) continue;
         // 从注册对象中移除该事件
         List<T> evts = target2event[target];
-        evts.RemoveAll((T e) => evt.Equals(evt));
+        evts.RemoveAll((T e) => evt.Equals(e));
 
         if (evts.Count == 0)
           target2event.Remove(target);
@@ -122,7 +136,7 @@ namespace YLCommon
       foreach (T evt in evts)
       {
         if (!event2func.ContainsKey(evt)) continue;
-        List<Callback> cbs = event2func[evt];
+        List<Callback> cbs = event2func[evt].cbs;
         cbs.RemoveAll((Callback c) => c.Target == target);
         if (cbs.Count == 0)
           event2func.Remove(evt);

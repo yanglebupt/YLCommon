@@ -114,7 +114,7 @@ while (true)
 
 #region NetworkTest
 
-
+/*
 NetworkConfig.logger.warn = Logger.Warn;
 NetworkConfig.logger.error = Logger.Error;
 NetworkConfig.logger.info = Logger.Info;
@@ -125,6 +125,7 @@ Client client = new(new ClientConfig
     port= 3000, 
     connectImmediately = true
 });
+*/
 
 /*
 TCPClient<NetMsg> client = new("127.0.0.1", 3000);
@@ -144,7 +145,7 @@ client.OnMessage += (NetMsg msg) => {
     Logger.ColorLog(LogColor.Green, msg.name);
 };
 */
-
+/*
 while (true)
 {
     string? ipt = Console.ReadLine();
@@ -160,6 +161,7 @@ while (true)
         client.Send(data);
     }
 }
+*/
 #endregion
 
 #region rw_lock
@@ -442,3 +444,15 @@ public class Item : IComparable<Item>
 }
 */
 #endregion
+
+A a = new B();
+
+public class B : C, A { }
+public class C { 
+    public C()
+    {
+        Console.WriteLine("c");
+    }
+}
+
+public interface A { }

@@ -2,7 +2,6 @@ using System;
 
 namespace YLCommon
 {
-
   public static class Timer
   {
     private static readonly DateTime era = new DateTime(1970, 1, 1, 0, 0, 0, 0);
@@ -15,7 +14,20 @@ namespace YLCommon
       TimeSpan ts = DateTime.UtcNow - era;
       return ts.TotalMilliseconds;
     }
-  }
+
+    // 日志输出
+    public class Logger
+    {
+        // 常规打印
+        public Action<string>? info;
+        // 警告打印
+        public Action<string>? warn;
+        // 错误打印
+        public Action<string>? error;
+    };
+
+    public static Logger logger = new();
+   }
 
   /// <summary>
   /// 定时器接口
@@ -33,19 +45,6 @@ namespace YLCommon
             this.cb = cb;
         }
     }
-
-    // 日志输出
-    public class Logger
-    {
-      // 常规打印
-      public Action<string>? info;
-      // 警告打印
-      public Action<string>? warn;
-      // 错误打印
-      public Action<string>? error;
-    };
-
-    public static Logger logger = new();
 
     /// <summary>
     /// 创建一个定时任务

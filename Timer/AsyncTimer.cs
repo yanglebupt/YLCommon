@@ -74,7 +74,7 @@ namespace YLCommon
                 if (taskPacks.TryDequeue(out TaskPack tp))
                     tp.cb.Invoke(tp.tid);
                 else
-                    logger.error?.Invoke("taskpack dequeue failed! ");
+                    Timer.logger.error?.Invoke("taskpack dequeue failed! ");
             }
         }
 
@@ -106,13 +106,13 @@ namespace YLCommon
                     }
                     // 完成了，需要移除
                     if (finite && !taskMap.TryRemove(tid, out AsyncTask _))
-                        logger.warn?.Invoke($"Task: {tid} remove after finish failed!");
+                        Timer.logger.warn?.Invoke($"Task: {tid} remove after finish failed!");
                 });
                 return tid;
             }
             else
             {
-                logger.warn?.Invoke($"Task: {tid} already exists!");
+                Timer.logger.warn?.Invoke($"Task: {tid} already exists!");
                 return 0;
             }
         }
@@ -134,7 +134,7 @@ namespace YLCommon
             }
             else
             {
-                logger.warn?.Invoke($"Task: {tid} cancel failed!");
+                Timer.logger.warn?.Invoke($"Task: {tid} cancel failed!");
                 return false;
             }
         }
@@ -142,6 +142,8 @@ namespace YLCommon
         public override void Reset()
         {
             // 需要等待已完成的任务队列全部取出
+            HandleTaskCallback();
+            taskPacks?.Clear();
             taskMap.Clear();
             tid = 0;
         }
